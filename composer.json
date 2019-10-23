@@ -24,8 +24,6 @@
     },
     "minimum-stability":"dev",
     "autoload":{
-    	"psr-0":{
-    		"PDFMerger": "PDFMerger.php"
-    	}
+		"files": ["PDFMerger.php"]
     }
 }

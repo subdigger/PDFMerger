@@ -1,5 +1,6 @@
 <?php
-include 'PDFMerger.php';
+
+require __DIR__ . '/../vendor/autoload.php';
 
 $pdf = new \PDFMerger\PDFMerger();
 
