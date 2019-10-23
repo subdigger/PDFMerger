@@ -3,6 +3,7 @@
  * @file
  * PDFMerger created in December 2009
  * @author Jarrod Nettles <jarrod@squarecrow.com>
+ * @author Artem Subach <subdigger@gmail.com>
  *
  * Updated by Vasiliy Zaytsev February 2016
  * vasiliy.zaytsev@ffwagency.com
@@ -32,75 +33,71 @@
  *  - essentially, it cannot import dynamic content such as form fields, links
  * or page annotations (anything not a part of the page content stream).
  */
+
 namespace PDFMerger;
 
-class PDFMerger
-{
-	private $_files;	//['form.pdf']  ["1,2,4, 5-19"]
-	private $_fpdi;
+class PDFMerger {
+	private $_files;    //['form.pdf']  ["1,2,4, 5-19"]
 
 	/**
-	 * Merge PDFs.
 	 * @return void
 	 */
-	public function __construct()
-	{
+	public function __construct() {
 		require_once('tcpdf/tcpdf.php');
 		require_once('tcpdf/tcpdi.php');
 	}
 
 	/**
 	 * Add a PDF for inclusion in the merge with a valid file path. Pages should be formatted: 1,3,6, 12-16.
-	 * @param $filepath
-	 * @param $pages
-	 * @return void
+	 *
+	 * @param string $filePath
+	 * @param string $pages
+	 *
+	 * @return PDFMerger
+	 * @throws \Exception
 	 */
-	public function addPDF($filepath, $pages = 'all')
-	{
-		if(file_exists($filepath))
-		{
-			if(strtolower($pages) != 'all')
-			{
-				$pages = $this->_rewritepages($pages);
-			}
+	public function addPDF($filePath, $pages = 'all') {
+		if (!file_exists($filePath)) {
+			throw new \Exception("Could not locate PDF on '{$filePath}'");
+		}
 
-			$this->_files[] = array($filepath, $pages);
+		if (strtolower($pages) != 'all') {
+			$pages = $this->_rewritepages($pages);
 		}
-		else
-		{
-			throw new exception("Could not locate PDF on '$filepath'");
-		}
+
+		$this->_files[] = array($filePath, $pages);
 
 		return $this;
 	}
 
 	/**
 	 * Merges your provided PDFs and outputs to specified location.
-	 * @param $outputmode
-	 * @param $outputname
-	 * @return PDF
+	 *
+	 * @param string $outputMode
+	 * @param string $outputPath
+	 *
+	 * @return string|bool
+	 * @throws \Exception
 	 */
-	public function merge($outputmode = 'browser', $outputpath = 'newfile.pdf')
-	{
-		if(!isset($this->_files) || !is_array($this->_files)): throw new exception("No PDFs to merge."); endif;
+	public function merge($outputMode = 'browser', $outputPath = 'newfile.pdf') {
+		if (!isset($this->_files) || !is_array($this->_files)){
+			throw new \Exception("No PDFs to merge.");
+		}
 
-    $fpdi = new TCPDI;
-    $fpdi->SetPrintHeader(false);
-    $fpdi->SetPrintFooter(false);
+		$fpdi = new \TCPDI();
+		$fpdi->SetPrintHeader(false);
+		$fpdi->SetPrintFooter(false);
 
 		//merger operations
-		foreach($this->_files as $file)
-		{
-			$filename  = $file[0];
+		foreach ($this->_files as $file) {
+			$filename = $file[0];
 			$filepages = $file[1];
 
 			$count = $fpdi->setSourceFile($filename);
 
 			//add the pages
-			if($filepages == 'all')
-			{
-				for($i=1; $i<=$count; $i++)
-				{
+			if ($filepages == 'all') {
+				for ($i = 1; $i <= $count; $i++) {
 					$template = $fpdi->importPage($i);
 					$size = $fpdi->getTemplateSize($template);
 					$orientation = ($size['h'] > $size['w']) ? 'P' : 'L';
@@ -108,12 +105,12 @@ class PDFMerger
 					$fpdi->AddPage($orientation, array($size['w'], $size['h']));
 					$fpdi->useTemplate($template);
 				}
-			}
-			else
-			{
-				foreach($filepages as $page)
-				{
-					if(!$template = $fpdi->importPage($page)): throw new exception("Could not load page '$page' in PDF '$filename'. Check that the page exists."); endif;
+			} else {
+				foreach ($filepages as $page) {
+					if (!$template = $fpdi->importPage($page)) {
+						throw new \Exception("Could not load page '$page' in PDF '$filename'. Check that the page exists.");
+					}
+
 					$size = $fpdi->getTemplateSize($template);
 					$orientation = ($size['h'] > $size['w']) ? 'P' : 'L';
 
@@ -124,42 +121,34 @@ class PDFMerger
 		}
 
 		//output operations
-		$mode = $this->_switchmode($outputmode);
+		$mode = $this->_switchmode($outputMode);
 
-		if($mode == 'S')
-		{
-			return $fpdi->Output($outputpath, 'S');
+		if ($mode == 'S') {
+			return $fpdi->Output($outputPath, 'S');
 		}
-		else if($mode == 'F')
-		{
-			$fpdi->Output($outputpath, $mode);
+
+		if ($mode == 'F') {
+			$fpdi->Output($outputPath, $mode);
 			return true;
 		}
-		else
-		{
-			if($fpdi->Output($outputpath, $mode) == '')
-			{
-				return true;
-			}
-			else
-			{
-				throw new exception("Error outputting PDF to '$outputmode'.");
-				return false;
-			}
+
+
+		if ($fpdi->Output($outputPath, $mode) == '') {
+			return true;
 		}
 
-
+		throw new \Exception("Error outputting PDF to '$outputMode'.");
 	}
 
 	/**
 	 * FPDI uses single characters for specifying the output location. Change our more descriptive string into proper format.
+	 *
 	 * @param $mode
-	 * @return Character
+	 *
+	 * @return string
 	 */
-	private function _switchmode($mode)
-	{
-		switch(strtolower($mode))
-		{
+	private function _switchmode($mode) {
+		switch (strtolower($mode)) {
 			case 'download':
 				return 'D';
 				break;
@@ -180,32 +169,35 @@ class PDFMerger
 
 	/**
 	 * Takes our provided pages in the form of 1,3,4,16-50 and creates an array of all pages
+	 *
 	 * @param $pages
-	 * @return unknown_type
+	 *
+	 * @return array
+	 * @throws \Exception
 	 */
-	private function _rewritepages($pages)
-	{
+	private function _rewritepages($pages) {
 		$pages = str_replace(' ', '', $pages);
 		$part = explode(',', $pages);
 
 		//parse hyphens
-		foreach($part as $i)
-		{
+		foreach ($part as $i) {
 			$ind = explode('-', $i);
 
-			if(count($ind) == 2)
-			{
+			if (count($ind) == 2) {
 				$x = $ind[0]; //start page
 				$y = $ind[1]; //end page
 
-				if($x > $y): throw new exception("Starting page, '$x' is greater than ending page '$y'."); return false; endif;
+				if ($x > $y){
+					throw new \Exception("Starting page, '{$x}' is greater than ending page '{$y}'.");
+				}
 
 				//add middle pages
-				while($x <= $y): $newpages[] = (int) $x; $x++; endwhile;
-			}
-			else
-			{
-				$newpages[] = (int) $ind[0];
+				while ($x <= $y) {
+					$newpages[] = (int)$x;
+					$x++;
+				}
+			} else {
+				$newpages[] = (int)$ind[0];
 			}
 		}
 
